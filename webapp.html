@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Connect 4 - Pastel Edition</title>
+  <style>
+    button {
+  background-color: #a8dadc; /* pastel teal */
+  border: none;
+  padding: 10px 20px;
+  margin: 5px;
+  font-size: 1rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #90c6c8; /* slightly darker pastel */
+}
+
+    body {
+      background-color: #fef6e4;
+      font-family: 'Segoe UI', sans-serif;
+      text-align: center;
+      color: #4a4a4a;
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      color: #8bd3dd;
+      font-size: 3rem;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(7, 80px);
+      grid-gap: 5px;
+      justify-content: center;
+      margin: 20px auto;
+    }
+
+    .cell {
+      width: 80px;
+      height: 80px;
+      background-color: #e0e8f9;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .player {
+      background-color: #ffb5a7;
+    }
+
+    .computer {
+      background-color: #b5ead7;
+    }
+
+    #status {
+      font-size: 1.5em;
+      margin: 15px;
+    }
+
+    .big-text {
+      font-size: 2.5em;
+      font-weight: bold;
+      color: #ff6b6b;
+    }
+
+    #restart, #firstTurnBtn, #muteBtn {
+      padding: 10px 20px;
+      font-size: 1em;
+      background-color: #fcd5ce;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: #333;
+      margin: 10px;
+    }
+
+    #restart:hover, #firstTurnBtn:hover, #muteBtn:hover {
+      background-color: #faedcd;
+    }
+
+    #scoreboard {
+      font-size: 1.2em;
+      margin: 15px;
+      color: #7d5a50;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Let's Play Connect 4</h1>
+
+  <div id="chooseFirst">
+    <button id="playerFirstBtn">Player Goes First</button>
+    <button id="computerFirstBtn">Computer Goes First</button>
+    <button id="muteBtn">🔊 Sound On</button>
+  </div>  
+
+  <div id="board"></div>
+  <p id="status">Your turn (Pink)</p>
+  <button id="restart">Restart Game</button>
+
+  <div id="scoreboard">
+    Wins: <span id="playerWins">0</span> | Losses: <span id="computerWins">0</span>
+  </div>
+
+  <!-- Sound effects -->
+  <audio id="clickSound" src="https://www.myinstants.com/media/sounds/mouse-click.mp3"></audio>
+  <audio id="winSound" src="https://www.myinstants.com/media/sounds/party-horn.mp3"></audio>
+  <audio id="loseSound" src="https://www.myinstants.com/media/sounds/sadtrombone.mp3"></audio>
+
+  <script>
+    const rows = 6;
+    const cols = 7;
+    let board = Array.from({ length: rows }, () => Array(cols).fill(null));
+    const boardDiv = document.getElementById("board");
+    const status = document.getElementById("status");
+    const restartBtn = document.getElementById("restart");
+    const firstTurnBtn = document.getElementById("firstTurnBtn");
+    const muteBtn = document.getElementById("muteBtn");
+
+    const clickSound = document.getElementById("clickSound");
+    const winSound = document.getElementById("winSound");
+    const loseSound = document.getElementById("loseSound");
+
+    let soundOn = true;
+    let gameOver = false;
+    let currentPlayer = "player";
+    let playerWins = 0;
+    let computerWins = 0;
+
+    const playerWinsSpan = document.getElementById("playerWins");
+    const computerWinsSpan = document.getElementById("computerWins");
+
+    function playSound(sound) {
+      if (soundOn) sound.play();
+    }
+
+    function createBoard() {
+      boardDiv.innerHTML = '';
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell');
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          boardDiv.appendChild(cell);
+        }
+      }
+    }
+
+    function updateBoard() {
+      const cells = document.querySelectorAll('.cell');
+      cells.forEach(cell => {
+        const r = cell.dataset.row;
+        const c = cell.dataset.col;
+        cell.classList.remove('player', 'computer');
+        if (board[r][c] === 'player') cell.classList.add('player');
+        if (board[r][c] === 'computer') cell.classList.add('computer');
+      });
+    }
+
+    function dropToken(col, player) {
+      for (let r = rows - 1; r >= 0; r--) {
+        if (board[r][col] === null) {
+          board[r][col] = player;
+          playSound(clickSound);
+          return r;
+        }
+      }
+      return null;
+    }
+
+    function isValidMove(col) {
+      return board[0][col] === null;
+    }
+
+    function getAvailableColumns() {
+      return [...Array(cols).keys()].filter(isValidMove);
+    }
+
+    function checkWin(player) {
+      const directions = [[0,1],[1,0],[1,1],[1,-1]];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (board[r][c] !== player) continue;
+          for (let [dr, dc] of directions) {
+            let count = 0;
+            for (let i = 0; i < 4; i++) {
+              const nr = r + dr * i;
+              const nc = c + dc * i;
+              if (nr < 0 || nr >= rows || nc < 0 || nc >= cols || board[nr][nc] !== player) break;
+              count++;
+            }
+            if (count === 4) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function computerMove() {
+      const columns = getAvailableColumns();
+      for (let col of columns) {
+        const tempBoard = board.map(row => [...row]);
+        dropTokenSim(tempBoard, col, 'computer');
+        if (checkSimWin(tempBoard, 'computer')) return col;
+      }
+      for (let col of columns) {
+        const tempBoard = board.map(row => [...row]);
+        dropTokenSim(tempBoard, col, 'player');
+        if (checkSimWin(tempBoard, 'player')) return col;
+      }
+      return columns.sort((a, b) => Math.abs(3 - a) - Math.abs(3 - b))[0];
+    }
+
+    function dropTokenSim(tempBoard, col, player) {
+      for (let r = rows - 1; r >= 0; r--) {
+        if (tempBoard[r][col] === null) {
+          tempBoard[r][col] = player;
+          return;
+        }
+      }
+    }
+
+    function checkSimWin(tempBoard, player) {
+      const directions = [[0,1],[1,0],[1,1],[1,-1]];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (tempBoard[r][c] !== player) continue;
+          for (let [dr, dc] of directions) {
+            let count = 0;
+            for (let i = 0; i < 4; i++) {
+              const nr = r + dr * i;
+              const nc = c + dc * i;
+              if (nr < 0 || nr >= rows || nc < 0 || nc >= cols || tempBoard[nr][nc] !== player) break;
+              count++;
+            }
+            if (count === 4) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function handlePlayerMove(col) {
+  if (gameOver || !isValidMove(col)) return;
+  const row = dropToken(col, 'player');
+  if (row === null) return;
+  playSound(clickSound);
+  updateBoard();
+  if (checkWin('player')) {
+    status.innerHTML = "<span class='big-text'>You win! 🎉</span>";
+    playSound(winSound);
+    playerWins++;
+    playerWinsSpan.textContent = playerWins;
+    gameOver = true;
+    return;
+  }
+
+  currentPlayer = 'computer';
+  status.textContent = "Computer's turn...";
+  setTimeout(() => {
+    const computerCol = computerMove();
+    dropToken(computerCol, 'computer');
+    updateBoard();
+    if (checkWin('computer')) {
+      status.innerHTML = "<span class='big-text'>Computer wins! 😭</span>";
+      playSound(loseSound);
+      computerWins++;
+      computerWinsSpan.textContent = computerWins;
+      gameOver = true;
+    } else {
+      status.textContent = "Your turn (Pink)";
+      currentPlayer = 'player';
+    }
+  }, 500);
+}
+
+
+    boardDiv.addEventListener('click', e => {
+      if (gameOver || !e.target.classList.contains('cell') || currentPlayer !== 'player') return;
+      const col = +e.target.dataset.col;
+      handlePlayerMove(col);
+    });
+
+    function restartGame() {
+  board = Array.from({ length: rows }, () => Array(cols).fill(null));
+  gameOver = false;
+  createBoard();
+  updateBoard();
+  status.textContent = currentPlayer === 'computer' ? "Computer's turn..." : "Your turn (Pink)";
+  
+  if (currentPlayer === 'computer') {
+    setTimeout(() => {
+      const col = computerMove();
+      dropToken(col, 'computer');
+      updateBoard();
+      if (checkWin('computer')) {
+        status.innerHTML = "<span class='big-text'>Computer wins! 😭</span>";
+        playSound(loseSound);
+        computerWins++;
+        computerWinsSpan.textContent = computerWins;
+        gameOver = true;
+      } else {
+        currentPlayer = 'player';
+        status.textContent = "Your turn (Pink)";
+      }
+    }, 500);
+  }
+}
+
+restartBtn.addEventListener('click', restartGame);
+
+
+document.getElementById('playerFirstBtn').addEventListener('click', () => {
+  currentPlayer = 'player';
+  restartGame();
+});
+
+document.getElementById('computerFirstBtn').addEventListener('click', () => {
+  currentPlayer = 'computer';
+  restartGame();
+});
+
+    muteBtn.addEventListener('click', () => {
+      soundOn = !soundOn;
+      muteBtn.textContent = soundOn ? "🔊 Sound On" : "🔇 Sound Off";
+    });
+
+    // Init
+    createBoard();
+    updateBoard();
+  </script>
+
+</body>
+</html>
